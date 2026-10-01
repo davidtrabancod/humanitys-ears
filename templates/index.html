@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Humanity's Ears - NASA DSN Tracker</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    
+    <!-- Librerías 3D (Three.js y OrbitControls) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body>
+
+    <div id="header">
+        <h1>HUMANITY'S EARS</h1>
+        <p>Deep Space Network Telemetry (Powered by Python)</p>
+        
+        <!-- Botones de acceso directo -->
+        <div style="margin-top: 10px; display: flex; gap: 8px;">
+            <button class="station-btn" onclick="openSidebarForCode('mdsc')">📍 Madrid</button>
+            <button class="station-btn" onclick="openSidebarForCode('gdscc')">📍 California</button>
+            <button class="station-btn" onclick="openSidebarForCode('cdscc')">📍 Canberra</button>
+        </div>
+    </div>
+
+    <!-- Panel Lateral Informativo -->
+    <div id="sidebar">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00ffcc; padding-bottom: 5px; margin-bottom: 10px;">
+            <h2 id="site-title" style="margin: 0; border: none;">Estación</h2>
+            <button id="close-btn" onclick="document.getElementById('sidebar').style.display='none'" style="background: transparent; border: 1px solid #00ffcc; color: #00ffcc; cursor: pointer; padding: 2px 8px; border-radius: 4px; font-weight: bold;">✕</button>
+        </div>
+        <div id="dishes-container"></div>
+    </div>
+
+    <!-- Lienzo donde se dibuja el 3D -->
+    <div id="canvas-container"></div>
+
+    <script src="/static/js/app3d.js"></script>
+</body>
+</html>
