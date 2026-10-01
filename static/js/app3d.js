@@ -3,6 +3,7 @@ let earth;
 let dsnData = null;
 const markersGroup = new THREE.Group();
 const beamsGroup = new THREE.Group();
+const spacecraftGroup = new THREE.Group();
 const raycaster = new THREE.Raycaster();
 const mouse = new THREE.Vector2();
 
@@ -71,6 +72,7 @@ function init() {
     // Anclar marcadores y haces a la rotación de la Tierra
     earth.add(markersGroup);
     earth.add(beamsGroup);
+    earth.add(spacecraftGroup);
 
     // 6. Elementos Estáticos
     createStaticMarkers();
@@ -149,35 +151,6 @@ function updateBeams() {
     while (beamsGroup.children.length > 0) {
         beamsGroup.remove(beamsGroup.children[0]);
     }
-
-    if (!dsnData || !dsnData.sites) return;
-
-    dsnData.sites.forEach(site => {
-        const stMeta = STATIONS.find(s => s.code === site.name);
-        if (!stMeta) return;
-
-        const startPos = latLongToVector3(stMeta.lat, stMeta.lon, 2.05);
-
-        site.dishes.forEach((dish, idx) => {
-            if (!dish.targets || dish.targets.length === 0) return;
-
-            const dir = startPos.clone().normalize();
-            const endPos = startPos.clone().add(dir.multiplyScalar(2 + (idx * 0.3)));
-
-            const points = [startPos, endPos];
-            const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
-            
-            // Color según si emite (rojo) o recibe (cian)
-            const lineMat = new THREE.LineBasicMaterial({
-                color: (dish.uplink && dish.uplink.length > 0) ? 0xff0055 : 0x00ffcc,
-                transparent: true,
-                opacity: 0.8
-            });
-
-            const line = new THREE.Line(lineGeo, lineMat);
-            beamsGroup.add(line);
-        });
-    });
 }
 
 function onPointerUp(event) {
@@ -236,6 +209,8 @@ window.openSidebarForCode = function(siteCode) {
         return;
     }
 
+    renderSpacecraftForSite(site);
+
     title.innerText = site.friendlyName;
     container.innerHTML = '';
 
@@ -292,6 +267,28 @@ function animate() {
 
     if (earth) earth.rotation.y += 0.0005;
 
+    // 1. Reducimos el multiplicador de tiempo de 0.0015 a 0.0006 para ralentizar la emisión
+    const time = Date.now() * 0.0003;
+
+    spacecraftGroup.children.forEach(item => {
+        if (item.isGroup) {
+            const waveGroup = item.getObjectByName("waveGroup");
+            if (waveGroup) {
+                waveGroup.children.forEach(wave => {
+                    const progress = (time + wave.userData.offset) % 1;
+                    
+                    // 2. Escala de expansión suave (de 1x a 2.8x)
+                    const scale = 1 + progress * 1;
+                    wave.scale.set(scale, scale, scale);
+                    
+                    // Atenuación de opacidad proporcional al progreso
+                    wave.material.opacity = Math.max(0, 1 - progress);
+                    wave.lookAt(camera.position);
+                });
+            }
+        }
+    });
+
     controls.update();
     renderer.render(scene, camera);
 }
@@ -300,6 +297,138 @@ function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// Función para construir un modelo 3D estilizado de un satélite
+function createSpacecraftModel() {
+    const group = new THREE.Group();
+
+    // 1. Cuerpo principal del satélite (Caja metálica plateada)
+    const bodyGeo = new THREE.BoxGeometry(0.12, 0.12, 0.16);
+    const bodyMat = new THREE.MeshStandardMaterial({ 
+        color: 0xcccccc, 
+        metalness: 0.8, 
+        roughness: 0.2 
+    });
+    const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+    group.add(bodyMesh);
+
+    // 2. Paneles Solares (Dos alas cian/doradas a los lados)
+    const panelGeo = new THREE.BoxGeometry(0.5, 0.01, 0.12);
+    const panelMat = new THREE.MeshStandardMaterial({ 
+        color: 0x00aaff, 
+        metalness: 0.5, 
+        roughness: 0.1,
+        emissive: 0x003366
+    });
+    const panelMesh = new THREE.Mesh(panelGeo, panelMat);
+    panelMesh.position.set(0, 0, 0);
+    group.add(panelMesh);
+
+    // 3. Antena Parabólica de Comunicaciones (Plato orientado hacia la Tierra)
+    const dishGeo = new THREE.ConeGeometry(0.08, 0.04, 16, 1, true);
+    const dishMat = new THREE.MeshStandardMaterial({ 
+        color: 0xffd700, // Dorado foil NASA
+        metalness: 0.9, 
+        roughness: 0.1,
+        side: THREE.DoubleSide
+    });
+    const dishMesh = new THREE.Mesh(dishGeo, dishMat);
+    dishMesh.rotation.x = Math.PI / 2;
+    dishMesh.position.set(0, 0, -0.1);
+    group.add(dishMesh);
+
+    return group;
+}
+
+
+function renderSpacecraftForSite(site) {
+    while (spacecraftGroup.children.length > 0) {
+        spacecraftGroup.remove(spacecraftGroup.children[0]);
+    }
+
+    if (!site || !site.dishes) return;
+
+    const stMeta = STATIONS.find(s => s.code === site.name);
+    if (!stMeta) return;
+
+    const stationPos = latLongToVector3(stMeta.lat, stMeta.lon, 2.05);
+
+    const up = stationPos.clone().normalize();
+    const approxNorth = new THREE.Vector3(0, 1, 0);
+    if (Math.abs(up.dot(approxNorth)) > 0.99) {
+        approxNorth.set(1, 0, 0);
+    }
+
+    const east = new THREE.Vector3().crossVectors(approxNorth, up).normalize();
+    const north = new THREE.Vector3().crossVectors(up, east).normalize();
+
+    site.dishes.forEach((dish, idx) => {
+        if (!dish.targets || dish.targets.length === 0) return;
+
+        const target = dish.targets[0];
+        
+        const azRad = (dish.azimuthAngle || 0) * (Math.PI / 180);
+        const elRad = (dish.elevationAngle || 0) * (Math.PI / 180);
+
+        const dir = new THREE.Vector3()
+            .addScaledVector(up, Math.sin(elRad))
+            .addScaledVector(north, Math.cos(elRad) * Math.cos(azRad))
+            .addScaledVector(east, Math.cos(elRad) * Math.sin(azRad))
+            .normalize();
+
+        let distanceScale = 3.5;
+        if (target.distMkm) {
+            if (target.distMkm > 1000) distanceScale = 6.0;
+            else if (target.distMkm > 100) distanceScale = 4.5;
+            else distanceScale = 3.2;
+        } else {
+            distanceScale = 3.0 + (idx * 0.8);
+        }
+
+        const scPos = stationPos.clone().add(dir.multiplyScalar(distanceScale));
+
+        // GRUPO CONTENEDOR DE LA NAVE (Se ubica en la posición final scPos)
+        const scGroup = new THREE.Group();
+        scGroup.position.copy(scPos);
+
+        // 1. Satélite 3D (En el centro local del grupo)
+        const scMesh = createSpacecraftModel();
+        scMesh.lookAt(stationPos);
+        scGroup.add(scMesh);
+
+        // 2. Ondas de radio concéntricas (En el centro local 0,0,0)
+        const waveGroup = new THREE.Group();
+        waveGroup.name = "waveGroup";
+
+        for (let i = 0; i < 3; i++) {
+            const waveGeo = new THREE.RingGeometry(0.15, 0.22, 32);
+            const waveMat = new THREE.MeshBasicMaterial({
+                color: 0x00ffcc,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.9
+            });
+            const waveMesh = new THREE.Mesh(waveGeo, waveMat);
+            waveMesh.userData = { offset: i * 0.33 };
+            waveGroup.add(waveMesh);
+        }
+        scGroup.add(waveGroup);
+
+        // 3. Haz de señal punteado hacia la Tierra
+        const points = [stationPos, scPos];
+        const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+        const lineMat = new THREE.LineDashedMaterial({
+            color: 0x00ffcc,
+            dashSize: 0.15,
+            gapSize: 0.08
+        });
+        const beamLine = new THREE.Line(lineGeo, lineMat);
+        beamLine.computeLineDistances();
+
+        spacecraftGroup.add(scGroup);
+        spacecraftGroup.add(beamLine); // Añadimos la línea al grupo raíz
+    });
 }
 
 window.onload = init;

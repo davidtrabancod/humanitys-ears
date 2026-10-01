@@ -49,13 +49,19 @@ def format_light_time(dist_Mkm):
         return f"{hours:.2f} horas ({seconds/60:.1f} min)"
 
 # Datos activos en directo de reserva por si la API pública de la NASA está en mantenimiento
+# Datos activos en directo de reserva usando la clave corregida SPACECRAFT_DATA
 MOCK_DISHES = {
     'madrid': [
         {
             "name": "DSS-63 (70m)",
             "azimuthAngle": 142.5,
             "elevationAngle": 48.2,
-            "targets": [{"code": "VGR1", "fullName": SPACECRAFT_NAMES['VGR1']}],
+            "targets": [{
+                "code": "VGR1", 
+                "fullName": SPACECRAFT_DATA['VGR1']['name'], 
+                "lightTime": format_light_time(SPACECRAFT_DATA['VGR1']['dist_Mkm']), 
+                "distMkm": SPACECRAFT_DATA['VGR1']['dist_Mkm']
+            }],
             "downlink": [{"dataRate": 160, "power": -155.2}],
             "uplink": [{"power": 18.0}]
         },
@@ -63,7 +69,12 @@ MOCK_DISHES = {
             "name": "DSS-55 (34m)",
             "azimuthAngle": 210.1,
             "elevationAngle": 35.0,
-            "targets": [{"code": "JWST", "fullName": SPACECRAFT_NAMES['JWST']}],
+            "targets": [{
+                "code": "JWST", 
+                "fullName": SPACECRAFT_DATA['JWST']['name'], 
+                "lightTime": format_light_time(SPACECRAFT_DATA['JWST']['dist_Mkm']), 
+                "distMkm": SPACECRAFT_DATA['JWST']['dist_Mkm']
+            }],
             "downlink": [{"dataRate": 28000000, "power": -120.4}],
             "uplink": []
         }
@@ -73,7 +84,12 @@ MOCK_DISHES = {
             "name": "DSS-14 (70m)",
             "azimuthAngle": 98.4,
             "elevationAngle": 62.1,
-            "targets": [{"code": "PERSEVERANCE", "fullName": SPACECRAFT_NAMES['PERSEVERANCE']}],
+            "targets": [{
+                "code": "PERSEVERANCE", 
+                "fullName": SPACECRAFT_DATA['PERSEVERANCE']['name'], 
+                "lightTime": format_light_time(SPACECRAFT_DATA['PERSEVERANCE']['dist_Mkm']), 
+                "distMkm": SPACECRAFT_DATA['PERSEVERANCE']['dist_Mkm']
+            }],
             "downlink": [{"dataRate": 2000000, "power": -135.0}],
             "uplink": [{"power": 20.0}]
         }
@@ -83,7 +99,12 @@ MOCK_DISHES = {
             "name": "DSS-43 (70m)",
             "azimuthAngle": 315.0,
             "elevationAngle": 22.8,
-            "targets": [{"code": "VGR2", "fullName": SPACECRAFT_NAMES['VGR2']}],
+            "targets": [{
+                "code": "VGR2", 
+                "fullName": SPACECRAFT_DATA['VGR2']['name'], 
+                "lightTime": format_light_time(SPACECRAFT_DATA['VGR2']['dist_Mkm']), 
+                "distMkm": SPACECRAFT_DATA['VGR2']['dist_Mkm']
+            }],
             "downlink": [{"dataRate": 160, "power": -158.0}],
             "uplink": [{"power": 18.0}]
         }
