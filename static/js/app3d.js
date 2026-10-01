@@ -8,12 +8,14 @@ const mouse = new THREE.Vector2();
 
 let pointerDownPos = { x: 0, y: 0 };
 
+// Ubicaciones fijas de las tres estaciones del DSN
 const STATIONS = [
-    { code: 'mdsc', name: 'Madrid (España)', lat: 40.4314, lon: -4.2480 },
-    { code: 'gdscc', name: 'Goldstone (California, EE.UU.)', lat: 35.4266, lon: -116.8900 },
-    { code: 'cdscc', name: 'Canberra (Australia)', lat: -35.4014, lon: 148.9817 }
+    { code: 'madrid', name: 'Madrid (España)', lat: 40.4314, lon: -4.2480 },
+    { code: 'goldstone', name: 'Goldstone (California, EE.UU.)', lat: 35.4266, lon: -116.8900 },
+    { code: 'canberra', name: 'Canberra (Australia)', lat: -35.4014, lon: 148.9817 }
 ];
 
+// Conversión de Coordenadas Geográficas (Lat/Lon) a Vector 3D (X, Y, Z)
 function latLongToVector3(lat, lon, radius = 2.05) {
     const phi = (90 - lat) * (Math.PI / 180);
     const theta = (lon + 180) * (Math.PI / 180);
@@ -28,20 +30,24 @@ function latLongToVector3(lat, lon, radius = 2.05) {
 function init() {
     const container = document.getElementById('canvas-container');
 
+    // 1. Configuración de Escena y Cámara
     scene = new THREE.Scene();
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
     camera.position.set(0, 0, 6);
 
+    // 2. Renderizador WebGL
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
 
+    // 3. Controles de Órbita 3D
     controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.minDistance = 3;
     controls.maxDistance = 10;
 
+    // 4. Iluminación
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
 
@@ -49,6 +55,7 @@ function init() {
     pointLight.position.set(10, 10, 10);
     scene.add(pointLight);
 
+    // 5. Malla y Textura de la Tierra
     const textureLoader = new THREE.TextureLoader();
     const earthTexture = textureLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_atmos_2048.jpg');
 
@@ -61,23 +68,27 @@ function init() {
     earth = new THREE.Mesh(geometry, material);
     scene.add(earth);
 
+    // Anclar marcadores y haces a la rotación de la Tierra
     earth.add(markersGroup);
     earth.add(beamsGroup);
 
+    // 6. Elementos Estáticos
     createStaticMarkers();
     createStars();
 
+    // Eventos del Sistema
     window.addEventListener('resize', onWindowResize);
 
-    // Detección de clics mediante inicio/fin de pulsación para evitar fricción con OrbitControls
+    // Captura de clics limpia (evita conflictos con la rotación de cámara)
     window.addEventListener('pointerdown', (e) => {
         pointerDownPos = { x: e.clientX, y: e.clientY };
     });
-
     window.addEventListener('pointerup', onPointerUp);
 
+    // Iniciar bucle de renderizado
     animate();
 
+    // Obtener telemetría inicial y refrescar cada 5s
     fetchDSNData();
     setInterval(fetchDSNData, 5000);
 }
@@ -86,13 +97,14 @@ function createStaticMarkers() {
     STATIONS.forEach(st => {
         const pos = latLongToVector3(st.lat, st.lon, 2.05);
 
-        // Aumentamos el radio de colisión
-        const markerGeo = new THREE.SphereGeometry(0.12, 16, 16);
+        // Esfera central del marcador
+        const markerGeo = new THREE.SphereGeometry(0.1, 16, 16);
         const markerMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc });
         const markerMesh = new THREE.Mesh(markerGeo, markerMat);
         markerMesh.position.copy(pos);
 
-        const ringGeo = new THREE.RingGeometry(0.14, 0.2, 32);
+        // Anillo brillante perimetral
+        const ringGeo = new THREE.RingGeometry(0.12, 0.18, 32);
         const ringMat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, side: THREE.DoubleSide });
         const ringMesh = new THREE.Mesh(ringGeo, ringMat);
         ringMesh.position.copy(pos);
@@ -132,6 +144,7 @@ async function fetchDSNData() {
     }
 }
 
+// Dibujar vectores de señal en 3D saliendo desde la Tierra hacia el espacio
 function updateBeams() {
     while (beamsGroup.children.length > 0) {
         beamsGroup.remove(beamsGroup.children[0]);
@@ -140,7 +153,7 @@ function updateBeams() {
     if (!dsnData || !dsnData.sites) return;
 
     dsnData.sites.forEach(site => {
-        const stMeta = STATIONS.find(s => s.code.toLowerCase() === site.name.toLowerCase());
+        const stMeta = STATIONS.find(s => s.code === site.name);
         if (!stMeta) return;
 
         const startPos = latLongToVector3(stMeta.lat, stMeta.lon, 2.05);
@@ -153,6 +166,8 @@ function updateBeams() {
 
             const points = [startPos, endPos];
             const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+            
+            // Color según si emite (rojo) o recibe (cian)
             const lineMat = new THREE.LineBasicMaterial({
                 color: (dish.uplink && dish.uplink.length > 0) ? 0xff0055 : 0x00ffcc,
                 transparent: true,
@@ -166,11 +181,9 @@ function updateBeams() {
 }
 
 function onPointerUp(event) {
-    // Si el usuario movió el ratón más de 5 píxeles, asumimos que estaba rotando el mapa, no haciendo clic
     const moveDistance = Math.hypot(event.clientX - pointerDownPos.x, event.clientY - pointerDownPos.y);
-    if (moveDistance > 5) return;
+    if (moveDistance > 5) return; // Se descarta si el usuario estaba arrastrando la cámara
 
-    // Evitar interceptar clics sobre los botones o textos de la UI
     if (event.target.tagName === 'BUTTON' || event.target.closest('#header') || event.target.closest('#sidebar')) {
         return;
     }
@@ -189,11 +202,12 @@ function onPointerUp(event) {
         }
 
         if (object.userData && object.userData.code) {
-            openSidebarForCode(object.userData.code);
+            window.openSidebarForCode(object.userData.code);
         }
     }
 }
 
+// Función expuesta globalmente para abrir el panel lateral
 window.openSidebarForCode = function(siteCode) {
     const sidebar = document.getElementById('sidebar');
     const title = document.getElementById('site-title');
@@ -209,7 +223,6 @@ window.openSidebarForCode = function(siteCode) {
         return;
     }
 
-    // Normalización de la clave recibida
     let targetKey = siteCode.toLowerCase();
     if (targetKey.includes('mdsc') || targetKey.includes('madrid')) targetKey = 'madrid';
     if (targetKey.includes('gdscc') || targetKey.includes('goldstone') || targetKey.includes('california')) targetKey = 'goldstone';
@@ -233,7 +246,11 @@ window.openSidebarForCode = function(siteCode) {
             const card = document.createElement('div');
             card.className = 'dish-card';
 
-            const targetNames = dish.targets.map(t => t.fullName).join(', ') || 'En espera / Sin objetivo';
+            const target = dish.targets[0] || {};
+            const targetName = target.fullName || 'En espera / Sin objetivo';
+            const lightTime = target.lightTime || 'N/A';
+            const dist = target.distMkm ? `${target.distMkm.toLocaleString()} M km` : 'N/A';
+            
             const down = dish.downlink[0] || {};
 
             let humanSpeed = '0 bps';
@@ -255,7 +272,9 @@ window.openSidebarForCode = function(siteCode) {
 
             card.innerHTML = `
                 <h3>ANTENA ${dish.name}</h3>
-                <p><strong>Objetivo:</strong> <span style="color: #00ffcc;">${targetNames}</span></p>
+                <p><strong>Objetivo:</strong> <span style="color: #00ffcc;">${targetName}</span></p>
+                <p><strong>Distancia:</strong> ${dist}</p>
+                <p><strong>Latencia luz (1-Way):</strong> <span style="color: #ff0055;">⏱️ ${lightTime}</span></p>
                 <p><strong>Orientación:</strong> Az: ${dish.azimuthAngle}° | El: ${dish.elevationAngle}°</p>
                 <div style="margin-top:8px; padding:6px; background:rgba(0,255,204,0.05); border-left:2px solid #00ffcc;">
                     <p><strong>Velocidad:</strong> ${humanSpeed}</p>

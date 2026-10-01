@@ -17,18 +17,36 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
-SPACECRAFT_NAMES = {
-    'VGR1': 'Voyager 1 (Espacio Interestelar)',
-    'VGR2': 'Voyager 2 (Espacio Interestelar)',
-    'JWST': 'Telescopio Espacial James Webb',
-    'PERSEVERANCE': 'Mars 2020 Perseverance Rover',
-    'MSL': 'Mars Science Laboratory (Curiosity)',
-    'JUNO': 'Sonda Juno (Júpiter)',
-    'NH': 'New Horizons (Plutón / Cinturón de Kuiper)',
-    'LRO': 'Lunar Reconnaissance Orbiter (Luna)',
-    'PARKER': 'Parker Solar Probe (El Sol)',
-    'ORION': 'Cápsula Artemisa Orion'
+# Velocidad de la luz en km/s
+SPEED_OF_LIGHT = 299792.458
+
+# Diccionario enriquecido con distancias aproximadas en millones de km
+SPACECRAFT_DATA = {
+    'VGR1': {'name': 'Voyager 1 (Espacio Interestelar)', 'dist_Mkm': 24400},
+    'VGR2': {'name': 'Voyager 2 (Espacio Interestelar)', 'dist_Mkm': 20400},
+    'JWST': {'name': 'Telescopio Espacial James Webb', 'dist_Mkm': 1.5},
+    'PERSEVERANCE': {'name': 'Mars 2020 Perseverance Rover', 'dist_Mkm': 225},
+    'MSL': {'name': 'Mars Science Laboratory (Curiosity)', 'dist_Mkm': 225},
+    'JUNO': {'name': 'Sonda Juno (Júpiter)', 'dist_Mkm': 778},
+    'NH': {'name': 'New Horizons (Cinturón de Kuiper)', 'dist_Mkm': 8000},
+    'LRO': {'name': 'Lunar Reconnaissance Orbiter (Luna)', 'dist_Mkm': 0.384},
+    'PARKER': {'name': 'Parker Solar Probe (El Sol)', 'dist_Mkm': 150},
+    'ORION': {'name': 'Cápsula Artemisa Orion', 'dist_Mkm': 0.384}
 }
+
+def format_light_time(dist_Mkm):
+    if not dist_Mkm:
+        return "Desconocido"
+    dist_km = dist_Mkm * 1_000_000
+    seconds = dist_km / SPEED_OF_LIGHT
+    if seconds < 60:
+        return f"{seconds:.2f} s"
+    elif seconds < 3600:
+        minutes = seconds / 60
+        return f"{minutes:.1f} min"
+    else:
+        hours = seconds / 3600
+        return f"{hours:.2f} horas ({seconds/60:.1f} min)"
 
 # Datos activos en directo de reserva por si la API pública de la NASA está en mantenimiento
 MOCK_DISHES = {
@@ -137,15 +155,15 @@ def get_dsn_data():
 
                 target_list = []
                 for t in targets:
-                    if isinstance(t, dict):
-                        code = t.get('@name', '')
-                    else:
-                        code = str(t)
+                    code = t.get('@name', '') if isinstance(t, dict) else str(t)
                     if code:
+                        sc_info = SPACECRAFT_DATA.get(code, {'name': code, 'dist_Mkm': None})
                         target_list.append({
                             "code": code,
-                            "fullName": SPACECRAFT_NAMES.get(code, code)
-                        })
+                            "fullName": sc_info['name'],
+                            "lightTime": format_light_time(sc_info['dist_Mkm']),
+                            "distMkm": sc_info['dist_Mkm']
+        })
 
                 down_list = []
                 for s in down_signals:
