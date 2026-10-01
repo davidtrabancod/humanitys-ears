@@ -3,39 +3,428 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Humanity's Ears - NASA DSN Tracker</title>
+    <title>Humanity's Ears - NASA DSN Live Deep Space Command</title>
+    
+    <!-- Fuentes Sci-Fi / HUD -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    
+    <!-- Estilos CSS base -->
     <link rel="stylesheet" href="/static/css/style.css">
     
-    <!-- Librerías 3D (Three.js y OrbitControls) -->
+    <!-- Three.js y OrbitControls -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <!-- GSAP para animaciones de cámara cinemáticas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+
+    <style>
+        :root {
+            --primary-neon: #00ffcc;
+            --secondary-neon: #ff0055;
+            --accent-gold: #ffd700;
+            --bg-glass: rgba(8, 14, 28, 0.88);
+            --border-glow: rgba(0, 255, 204, 0.35);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #03050a;
+            font-family: 'Share Tech Mono', monospace;
+            color: #e2e8f0;
+            user-select: none;
+        }
+
+        /* Scanlines Sci-Fi Overlay */
+        .scanline-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+            background-size: 100% 4px;
+            z-index: 10;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        /* Tarjeta Header Principal */
+        #header {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1000;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glow);
+            box-shadow: 0 0 25px rgba(0, 255, 204, 0.12), inset 0 0 15px rgba(0, 255, 204, 0.05);
+            backdrop-filter: blur(12px);
+            border-radius: 10px;
+            padding: 18px;
+            width: 380px;
+            box-sizing: border-box;
+        }
+
+        h1.brand-title {
+            margin: 0;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--primary-neon);
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(0, 255, 204, 0.6);
+        }
+
+        /* CUSTOM SCI-FI DROPDOWN MENU */
+        .custom-dropdown {
+            position: relative;
+            margin-top: 12px;
+            width: 100%;
+        }
+
+        .dropdown-label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.6rem;
+            color: #94a3b8;
+            letter-spacing: 1.5px;
+            font-weight: bold;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dropdown-trigger {
+            background: rgba(0, 255, 204, 0.05);
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            color: var(--primary-neon);
+            border-radius: 6px;
+            padding: 10px 12px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .dropdown-trigger:hover {
+            background: rgba(0, 255, 204, 0.15);
+            border-color: var(--primary-neon);
+            box-shadow: 0 0 12px rgba(0, 255, 204, 0.25);
+        }
+
+        .dropdown-options {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 6px;
+            background: rgba(8, 14, 28, 0.95);
+            border: 1px solid var(--primary-neon);
+            border-radius: 6px;
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.2);
+            backdrop-filter: blur(16px);
+            z-index: 1002;
+            overflow: hidden;
+        }
+
+        .dropdown-options.show {
+            display: block;
+        }
+
+        .dropdown-option {
+            padding: 10px 12px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: #e2e8f0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+            border-bottom: 1px solid rgba(0, 255, 204, 0.08);
+        }
+
+        .dropdown-option:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-option:hover {
+            background: rgba(0, 255, 204, 0.18);
+            color: var(--primary-neon);
+            padding-left: 16px;
+        }
+
+        /* Botón de Audio y Cyber Deck Minimalistas */
+        .btn-hud-minimal {
+            background: rgba(0, 255, 204, 0.05);
+            border: 1px solid rgba(0, 255, 204, 0.2);
+            color: #94a3b8;
+            border-radius: 6px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-hud-minimal:hover {
+            border-color: var(--primary-neon);
+            color: var(--primary-neon);
+            box-shadow: 0 0 10px rgba(0, 255, 204, 0.4);
+        }
+
+        .btn-hud-minimal.active {
+            color: var(--primary-neon);
+            border-color: rgba(0, 255, 204, 0.5);
+            background: rgba(0, 255, 204, 0.15);
+            box-shadow: 0 0 8px rgba(0, 255, 204, 0.2);
+        }
+
+        /* Widget de Ancho de Banda Terrestre */
+        #bandwidth-widget {
+            position: fixed !important;
+            bottom: 20px !important;
+            left: 20px !important;
+            top: auto !important;
+            z-index: 1000;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glow);
+            backdrop-filter: blur(12px);
+            border-radius: 10px;
+            padding: 12px 16px;
+            width: 280px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+            box-sizing: border-box;
+        }
+
+        .btn-info-discreet {
+            background: rgba(0, 255, 204, 0.08);
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            color: var(--primary-neon);
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.65rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .btn-info-discreet:hover {
+            background: var(--primary-neon);
+            color: #03050a;
+            box-shadow: 0 0 8px var(--primary-neon);
+        }
+
+        #bandwidth-info-popover {
+            display: none;
+            position: absolute;
+            bottom: 115%;
+            left: 0;
+            width: 280px;
+            background: rgba(8, 14, 28, 0.95);
+            border: 1px solid var(--primary-neon);
+            box-shadow: 0 0 20px rgba(0, 255, 204, 0.25);
+            backdrop-filter: blur(16px);
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 0.72rem;
+            line-height: 1.4;
+            color: #cbd5e1;
+            z-index: 1001;
+            box-sizing: border-box;
+        }
+
+        /* Sidebar Lateral */
+        #sidebar {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            bottom: 20px;
+            width: 420px;
+            z-index: 1000;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-glow);
+            box-shadow: 0 0 35px rgba(0, 0, 0, 0.8), inset 0 0 20px rgba(0, 255, 204, 0.05);
+            backdrop-filter: blur(16px);
+            border-radius: 10px;
+            padding: 22px;
+            display: none;
+            overflow-y: auto;
+        }
+
+        .dish-card {
+            background: rgba(15, 23, 42, 0.7);
+            border: 1px solid rgba(252, 252, 252, 0.1);
+            border-left: 3px solid var(--primary-neon);
+            border-radius: 8px;
+            padding: 14px;
+            margin-bottom: 14px;
+            transition: border-color 0.3s ease;
+        }
+
+        .dish-card:hover {
+            border-color: var(--primary-neon);
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.15);
+        }
+
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.9; }
+            50% { transform: scale(2.2); opacity: 0; }
+            100% { transform: scale(0.95); opacity: 0; }
+        }
+    </style>
 </head>
 <body>
 
+    <!-- Overlay Sci-Fi FX -->
+    <div class="scanline-overlay"></div>
+
+    <!-- Contenedor 3D Canvas -->
+    <div id="canvas-container" style="width: 100vw; height: 100vh;"></div>
+
+    <!-- Panel Control Izquierdo -->
     <div id="header">
-        <h1>HUMANITY'S EARS</h1>
-        <p>Deep Space Network Telemetry (Powered by Python)</p>
-        
-        <!-- Botones de acceso directo -->
-        <div style="margin-top: 10px; display: flex; gap: 8px;">
-            <button class="station-btn" onclick="openSidebarForCode('mdsc')">📍 Madrid</button>
-            <button class="station-btn" onclick="openSidebarForCode('gdscc')">📍 California</button>
-            <button class="station-btn" onclick="openSidebarForCode('cdscc')">📍 Canberra</button>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h1 class="brand-title">HUMANITY'S EARS</h1>
+            <div style="display: flex; gap: 6px;">
+                <button id="btn-audio-toggle" class="btn-hud-minimal" onclick="toggleAudio()" title="Activar/Desactivar Música">🔊</button>
+                <button id="btn-fullscreen-toggle" class="btn-hud-minimal" onclick="toggleCyberDeck()" title="Modo Cyber Deck (Pantalla Completa)">⛶</button>
+            </div>
+        </div>
+        <p style="margin: 6px 0 14px 0; font-size: 0.75rem; color: #94a3b8; letter-spacing: 0.5px;">
+            Deep Space Network Command (Python Powered)
+        </p>
+
+        <!-- Live Heartbeat NASA Badge -->
+        <div style="
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(0, 255, 204, 0.04);
+            border: 1px solid rgba(0, 255, 204, 0.25);
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 14px;
+        ">
+            <div style="position: relative; width: 12px; height: 12px;">
+                <span id="heartbeat-dot" style="position: absolute; width: 12px; height: 12px; background-color: var(--primary-neon); border-radius: 50%; display: inline-block; box-shadow: 0 0 12px var(--primary-neon);"></span>
+                <span id="heartbeat-pulse" style="position: absolute; width: 12px; height: 12px; background-color: var(--primary-neon); border-radius: 50%; animation: pulse-ring 2s infinite;"></span>
+            </div>
+            <div>
+                <div style="font-size: 0.65rem; color: #94a3b8; letter-spacing: 1.5px; font-weight: bold; font-family: 'Orbitron', sans-serif;">NASA DSN TELEMETRY FEED</div>
+                <div style="font-size: 0.78rem; font-weight: bold; color: var(--primary-neon); margin-top: 2px;">
+                    ● LIVE STREAM <span id="last-update-timer" style="color: #cbd5e1; font-weight: normal; font-size: 0.72rem;">(Sincronizado hace 0s)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Dropdown Sci-Fi: ESTACIONES ACTIVAS -->
+        <div class="custom-dropdown">
+            <div class="dropdown-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <circle cx="12" cy="12" r="9"/>
+                    <path d="M12 3v18M3 12h18"/>
+                </svg>
+                <span>ESTACIONES ACTIVAS DSN</span>
+            </div>
+            <div class="dropdown-trigger" onclick="toggleCustomDropdown()">
+                <span id="dropdown-selected-text">SELECCIONAR ESTACIÓN</span>
+                <span style="font-size: 0.6rem;">▼</span>
+            </div>
+            <div class="dropdown-options" id="dropdown-options-menu">
+                <div class="dropdown-option" onclick="selectStationOption('madrid', 'MADRID [MDSCC]')">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#00ffcc" stroke-width="3"><circle cx="12" cy="12" r="8"/><path d="M12 2v20M2 12h20"/></svg>
+                    <span>MADRID (ESPAÑA) [MDSCC]</span>
+                </div>
+                <div class="dropdown-option" onclick="selectStationOption('goldstone', 'GOLDSTONE [GDSCC]')">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#00ffcc" stroke-width="3"><circle cx="12" cy="12" r="8"/><path d="M12 2v20M2 12h20"/></svg>
+                    <span>GOLDSTONE (EE.UU.) [GDSCC]</span>
+                </div>
+                <div class="dropdown-option" onclick="selectStationOption('canberra', 'CANBERRA [CDSCC]')">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#00ffcc" stroke-width="3"><circle cx="12" cy="12" r="8"/><path d="M12 2v20M2 12h20"/></svg>
+                    <span>CANBERRA (AUSTRALIA) [CDSCC]</span>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Panel Lateral Informativo -->
-    <div id="sidebar">
-        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #00ffcc; padding-bottom: 5px; margin-bottom: 10px;">
-            <h2 id="site-title" style="margin: 0; border: none;">Estación</h2>
-            <button id="close-btn" onclick="document.getElementById('sidebar').style.display='none'" style="background: transparent; border: 1px solid #00ffcc; color: #00ffcc; cursor: pointer; padding: 2px 8px; border-radius: 4px; font-weight: bold;">✕</button>
+    <!-- Widget Monitor de Ancho de Banda Terrestre -->
+    <div id="bandwidth-widget">
+        <!-- Card de Explicación Emergente -->
+        <div id="bandwidth-info-popover">
+            <div style="font-family: 'Orbitron', sans-serif; font-weight: bold; color: var(--primary-neon); margin-bottom: 6px; font-size: 0.75rem;">
+                📡 GLOBAL EARTH DOWNLINK
+            </div>
+            Muestra el <strong>flujo total acumulado de datos por segundo ($Mbps$)</strong> que la Tierra está recibiendo en este instante desde todas las sondas activas del sistema solar a través de las tres estaciones DSN (Madrid, Goldstone y Canberra).
         </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <div style="font-size: 0.65rem; color: #94a3b8; letter-spacing: 1.5px; font-weight: bold; font-family: 'Orbitron', sans-serif;">
+                GLOBAL EARTH DOWNLINK
+            </div>
+            <button class="btn-info-discreet" onclick="toggleBandwidthInfo(event)" title="Información sobre la métrica">i</button>
+        </div>
+
+        <div style="display: flex; align-items: baseline; gap: 6px;">
+            <span id="global-speed-val" style="font-family: 'Orbitron', sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--primary-neon);">0.00</span>
+            <span id="global-speed-unit" style="font-size: 0.8rem; color: #cbd5e1; font-weight: bold;">Mbps</span>
+        </div>
+        <div style="width: 100%; background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; margin-top: 6px; overflow: hidden;">
+            <div id="bandwidth-bar" style="width: 0%; height: 100%; background: var(--primary-neon); transition: width 0.3s ease; box-shadow: 0 0 8px var(--primary-neon);"></div>
+        </div>
+    </div>
+
+    <!-- Panel Lateral Derecho -->
+    <div id="sidebar">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0, 255, 204, 0.25); padding-bottom: 12px; margin-bottom: 18px;">
+            <h2 id="site-title" style="margin: 0; font-family: 'Orbitron', sans-serif; font-size: 1.15rem; color: var(--primary-neon); letter-spacing: 1px;">Estación</h2>
+            <button onclick="document.getElementById('sidebar').style.display='none'" style="background: transparent; border: 1px solid var(--primary-neon); color: var(--primary-neon); border-radius: 4px; cursor: pointer; padding: 4px 10px; font-family: 'Orbitron', sans-serif; font-weight: bold; transition: 0.2s;" onmouseover="this.style.background='var(--primary-neon)'; this.style.color='#000';" onmouseout="this.style.background='transparent'; this.style.color='var(--primary-neon)';">✕</button>
+        </div>
+
         <div id="dishes-container"></div>
     </div>
 
-    <!-- Lienzo donde se dibuja el 3D -->
-    <div id="canvas-container"></div>
+    <!-- Lógica JS para el Dropdown Personalizado -->
+    <script>
+        function toggleCustomDropdown() {
+            const menu = document.getElementById('dropdown-options-menu');
+            menu.classList.toggle('show');
+        }
 
+        function selectStationOption(code, label) {
+            document.getElementById('dropdown-selected-text').innerText = label;
+            document.getElementById('dropdown-options-menu').classList.remove('show');
+            if (window.openSidebarForCode) {
+                window.openSidebarForCode(code);
+            }
+        }
+
+        // Cerrar menú al hacer clic fuera
+        document.addEventListener('click', function(e) {
+            const dropdown = document.querySelector('.custom-dropdown');
+            if (dropdown && !dropdown.contains(e.target)) {
+                document.getElementById('dropdown-options-menu').classList.remove('show');
+            }
+        });
+    </script>
+
+    <!-- Script App 3D -->
     <script src="/static/js/app3d.js"></script>
 </body>
 </html>
